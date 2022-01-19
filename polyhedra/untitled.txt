@@ -1,0 +1,41 @@
+#second layer 
+
+new_points, new_ssv = [],[]
+
+#first layer 
+
+points, combos = cx.find_intersections(2,parameters[0],parameters[1])
+pts, ssv = cx.determine_existing_points(points,combos,model)
+ss_dict = {ss: pt for ss, pt in zip(ssv,pts)}
+ssr = cx.get_ssr(ssv,6)
+
+print(set([ss[0:6] for ss in ssv]), '\n')
+print(len(ssr))
+
+for temp_ssr in ssr:
+
+    region_maps = cx.get_all_maps_on_region(temp_ssr,1,parameters,architecture)
+    
+    last_layer, last_biases = cx.make_linear(region_maps[1])
+    
+    early_layer_maps, early_layer_biases = cx.make_linear(region_maps[0])
+
+    temp_points,temp_combos = cx.find_intersections(2, last_layer, last_biases, 
+                           early_layer_maps=early_layer_maps, 
+                           early_layer_biases=early_layer_biases,
+                           device=None)
+    
+    if len(temp_points)>0: 
+        temp_pts, temp_ssv = cx.determine_existing_points(torch.tensor(temp_points),
+                                                          temp_combos,model, region_ss=temp_ssr[0:6])
+    
+    
+    
+    
+    #print(temp_pts,temp_ssv)
+    
+        new_points.extend(temp_pts)
+        new_ssv.extend(temp_ssv)
+        
+newdict = {ss:pt for ss,pt in zip(new_ssv,new_points)}
+ss_dict_final = newdict | ss_dict
