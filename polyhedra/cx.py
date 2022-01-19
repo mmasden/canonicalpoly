@@ -2,7 +2,7 @@ import os
 import torch
 from torch import nn 
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms 
+#from torchvision import datasets, transforms 
 
 import sklearn
 import itertools 
@@ -48,9 +48,9 @@ def is_face(v, F):
     
 # Linear algebra utilities #
 
-def make_affine(matrix, bias):
+def make_affine(matrix, bias, device='cpu'):
     A = torch.hstack([matrix, bias.reshape(len(matrix),1)])
-    A = torch.vstack([A,torch.zeros(1,A.shape[1])])
+    A = torch.vstack([A,torch.zeros(1,A.shape[1]).to(device)])
     A[-1,-1]=1 
     return A 
 
@@ -96,11 +96,11 @@ def plot_complex(plot_dict, num_comparison, ax=None, colors=None):
     
 #obtain affine maps for each region 
 
-def get_layer_map_on_region(ss,weights,biases): 
+def get_layer_map_on_region(ss,weights,biases,device='cpu'): 
     ''' 
     Inputs sign sequence IN LAYER and parameter list FOR LAYER. Returns map on region OF THAT LAYER
     '''
-    base_A = make_affine(weights,biases)
+    base_A = make_affine(weights,biases, device=device)
     region_indices = np.where(np.array(list(ss))==-1)
     r_map = torch.clone(base_A)
     r_map[region_indices,:] = 0
@@ -169,7 +169,7 @@ def get_signs(dim):
         
         
     if dim == 1: 
-        return [[1],[-1]] 
+        return [[1],[-1]]
     elif dim > 1: 
         signs = [] 
         for signlist in get_signs(dim-1):
@@ -186,23 +186,24 @@ def get_signs(dim):
     
 def get_ssr(ssv, ss_length): 
     #record the existing vertex ss as np arrays
-    ssv_np = [np.array(ss[0:ss_length]) for ss in ssv]
+    ssv_np = [ss[0:ss_length] for ss in ssv]
 
     #record the regions that are present as a set 
     ssr = set() 
 
     #loop through vertices and obtain regions which are adjacent
     for ss in ssv_np: 
-        ss_np = np.array(ss)
-        locs = np.where(ss_np==0)[0]
-        
+        #ss_np = np.array(ss)
+        locs = torch.where(ss==0)[0]
         dimension=len(locs)
         
-        tempss=ss_np.copy()
+        tempss=torch.clone(ss)
 
-        signs = get_signs(dimension)
+        signs = torch.Tensor(get_signs(dimension)).to('cuda')
         #print(signs)
         for sign in signs: 
+            #print(tempss[locs])
+            #print(sign)
             tempss[locs]=sign
             #print(tempss)
             ssr.add(tuple(tempss))
@@ -210,11 +211,11 @@ def get_ssr(ssv, ss_length):
     return ssr
     
     
-def determine_existing_points(points, combos, model, region_ss=None):
+def determine_existing_points(points, combos, model, region_ss=None, device='cpu'):
     ''' evaluates sign sequence of points matches existing sign sequence in region
     Region sign sequence should be truncated.'''
     
-    image = model(points)
+    image = model(points.to(device))
 
     # obtains sign sequence of initial vertices
     ssv = torch.hstack([torch.sign(image[i]) for i in range(len(image))])
@@ -231,18 +232,20 @@ def determine_existing_points(points, combos, model, region_ss=None):
     region_len = 0 if region_ss is None else len(region_ss) 
     
     for  temp_pt, temp_ss in zip(points, ssv): 
-        temp_ss = temp_ss.detach().numpy()
+        #temp_ss = temp_ss.cpu().detach().numpy() try not detaching
         if region_ss is None or is_face(temp_ss[0:region_len],region_ss): 
-            true_points.append(temp_pt.detach().numpy()) 
-            true_ssv.append(tuple(temp_ss.astype(int))) 
-            
+            true_points.append(temp_pt) #.cpu().detach().numpy()) 
+            true_ssv.append(temp_ss) 
     
-    true_points=np.array(true_points)
-
+    if len(true_ssv)>0: 
+        true_ssv=torch.vstack(true_ssv)
+        true_points=torch.vstack(true_points)
+            #true_points=np.array(true_points.cpu().detach().numpy())
+    
     return true_points, true_ssv
     
     
-def get_all_maps_on_region(ss, depth, param_list, architecture): 
+def get_all_maps_on_region(ss, depth, param_list, architecture, device='cpu'): 
     
     
     cumulative_architecture = [np.sum(architecture[1:i],dtype='int') for i in range(1,len(architecture)+1)]
@@ -252,7 +255,7 @@ def get_all_maps_on_region(ss, depth, param_list, architecture):
     
     for i in range(depth): 
         layer_ss = ss[cumulative_architecture[i]:cumulative_architecture[i+1]]
-        region_map_on_layer = get_layer_map_on_region(layer_ss,param_list[2*i],param_list[2*i+1])
+        region_map_on_layer = get_layer_map_on_region(layer_ss,param_list[2*i],param_list[2*i+1], device=device)
         #print(region_map_on_layer)
         region_maps.append(region_map_on_layer)
         
@@ -268,7 +271,7 @@ def get_all_maps_on_region(ss, depth, param_list, architecture):
     
     #last map not zeroed for each neuron 
     
-    affine_layer_maps = [make_affine(param_list[2*i],param_list[2*i+1]) for i in range(depth+1)]
+    affine_layer_maps = [make_affine(param_list[2*i],param_list[2*i+1], device=device) for i in range(depth+1)]
    # print(affine_layer_maps)
     
     actual_layer_maps = [affine_layer_maps[0].detach()]
@@ -353,8 +356,11 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
                                     [torch.reshape(early_layer_biases[early_neurons],[-1,1]),
                                      torch.reshape(last_biases[last_neurons],[-1,1])]))
 
-                    all_points.append(point.detach().numpy().reshape(in_dim))
+                    all_points.append(point.reshape((1,in_dim)))
                     combos.append(list(early_neurons.numpy())+list(last_neurons.numpy()+old_vals))
+        
+        if len(all_points)>0: 
+            all_points=torch.vstack(all_points)
         
         #add in intersections of only the last layer 
         #UNLESS the most recent output is singular. 
@@ -369,14 +375,14 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
             last_combos = torch.combinations(n_out, r=in_dim)
 
             temp_points = torch.linalg.solve(last_layer[last_combos],-last_biases[last_combos])
-            temp_points = list(temp_points.numpy())
-            all_points.extend(temp_points)
+            #temp_points = list(temp_points.cpu().numpy())
+            all_points = torch.vstack([all_points,temp_points])
             last_combos = list((last_combos+old_vals).numpy())
             #print(last_combos)
             combos.extend(last_combos)
         
         
-        return np.array(all_points), np.array(combos)
+        return all_points, np.array(combos)
         
 
         
@@ -410,10 +416,17 @@ def get_full_complex(model, max_depth=None, device=None):
     temp_points, temp_combos = find_intersections(in_dim,parameters[0],parameters[1])
     
     #initialize full list of points, sign sequences, and ss_dict  
-    all_points, all_ssv = determine_existing_points(temp_points,temp_combos,model)
+    all_points, all_ssv = determine_existing_points(temp_points,temp_combos,model, device=device)
     
-    all_ss_dict = {ss: pt for ss, pt in zip(all_ssv,all_points)}
+    tsv=all_ssv.clone().cpu().detach().numpy()
+    #tpt = all_points.clone().cpu().detach().numpy()
+    
+    #all_ss_dict = {tuple(ss): pt for ss, pt in zip(tsv,tpt)}
+    
+    all_ss_dict = {tuple(ss): pt for ss, pt in zip(tsv,all_points)}
     #print(all_points)
+    #print(all_points)
+
     # get subsequent layer sign sequences 
     # requires updating points, ssv and ss_dict 
     
@@ -430,17 +443,18 @@ def get_full_complex(model, max_depth=None, device=None):
         #loop through regions from previous layers 
         for temp_ssr in ssr:
             #obtain the maps on the region induced by the model 
-            region_maps = get_all_maps_on_region(temp_ssr,i,parameters,architecture)
+            region_maps = get_all_maps_on_region(temp_ssr,i,parameters,architecture, device=device)
             #print(len(region_maps))
             #obtain the early layer maps as a list  of weights and biases
             early_layer_maps, early_layer_biases=[],[]
             for j in range(i):
                 ll, bb = make_linear(region_maps[j])
-                early_layer_maps.extend(ll.detach().numpy()) 
-                early_layer_biases.extend(bb.detach().numpy()) 
-                
-            early_layer_maps=torch.tensor(early_layer_maps)
-            early_layer_biases = torch.tensor(early_layer_biases)
+                early_layer_maps.extend(ll) 
+                early_layer_biases.extend(bb) 
+            
+            
+            early_layer_maps=torch.vstack(early_layer_maps)
+            early_layer_biases = torch.vstack(early_layer_biases)
             
             #obtain the last layer map as a list of weights and biases 
             last_layer, last_biases = make_linear(region_maps[-1])
@@ -454,21 +468,34 @@ def get_full_complex(model, max_depth=None, device=None):
             
             #if there's at least one point evaluate the veracity of it
             if len(temp_points)>0: 
-                temp_pts, temp_ssv = determine_existing_points(torch.tensor(temp_points),
-                                                                  temp_combos,model, region_ss=temp_ssr)
+                temp_pts, temp_ssv = determine_existing_points(temp_points,
+                                                                  temp_combos,model, region_ss=temp_ssr, device=device)
 
                 new_points.extend(temp_pts)
                 new_ssv.extend(temp_ssv)
         
         #done looping through regions, now collect points 
-
-        
+       
         if len(new_points)>0: 
-            new_points = np.array(new_points)
-            new_ss_dict = {ss:pt for ss,pt in zip(new_ssv,new_points)}
-            all_points = np.row_stack([all_points,new_points])
-            all_ssv = all_ssv+new_ssv 
+            #print(new_points)
+            new_points=torch.vstack(new_points)
+            #print(all_points)
+            all_points = torch.vstack([all_points,new_points])
+            
+            new_ssv = torch.vstack(new_ssv)
+            all_ssv = torch.vstack([all_ssv,new_ssv]) 
+            
+            
+            
+            # tsv = new_ssv.clone().cpu().detach().numpy()
+            # tpt = new_points.clone().cpu().detach().numpy()
+
+            new_ssv=new_ssv.cpu().detach().numpy()
+            # new_ssv = np.array(new_ssv,dtype='int')
+            new_ss_dict = {tuple(ss):pt for ss,pt in zip(new_ssv,new_points)}
+            
             all_ss_dict = all_ss_dict | new_ss_dict
+
         else:
             pass
     
