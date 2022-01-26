@@ -94,7 +94,8 @@ def get_layer_map_on_region(ss,weights,biases,device='cpu'):
     '''
     
     base_A = make_affine(weights,biases, device=device)
-    region_indices = np.where(np.array(list(ss))==-1)
+    region_indices = torch.where(ss==-1)[0]
+    #print(region_indices)
     r_map = torch.clone(base_A)
     r_map[region_indices,:] = 0
 
