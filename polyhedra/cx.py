@@ -27,7 +27,7 @@ def edge_connected(v1, v2,  dim = 2):
     p1 = multiply(v1,v2)
     p2 = multiply(v2,v1) 
     #print(p1,p2)
-    if p1 == p2 and np.sum([p == 0 for p in p1 ]) == dim-1: 
+    if p1 == p2 and sum([p == 0 for p in p1 ]) == dim-1: 
         return True 
     else: 
         return False 
@@ -44,7 +44,7 @@ def is_face(v, F):
 # Linear algebra utilities #
 def make_affine(matrix, bias, device='cpu'):
     A = torch.hstack([matrix, bias.reshape(len(matrix),1)])
-    A = torch.vstack([A,torch.zeros(1,A.shape[1]).to(device)])
+    A = torch.vstack([A,torch.zeros(1,A.shape[1],device=device)])
     A[-1,-1]=1 
     return A 
 
@@ -176,7 +176,7 @@ def get_signs(dim):
 
     
 def get_ssr(ssv, ss_length, signs): 
-    #record the existing vertex ss as np arrays
+    #record the existing vertex ss as np arrays or similar
     ssv_np = [ss[0:ss_length] for ss in ssv]
     
     #record the regions that are present as a set 
@@ -211,7 +211,7 @@ def determine_existing_points(points, combos, model, region_ss=None, device='cpu
     ''' evaluates sign sequence of points matches existing sign sequence in region
     Region sign sequence should be truncated.'''
     
-    image = model(points.to(device))
+    image = model(points)
 
     # obtains sign sequence of initial vertices
     ssv = torch.hstack([torch.sign(image[i]) for i in range(len(image))])
@@ -279,7 +279,7 @@ def get_all_maps_on_region(ss, depth, param_list, architecture, device='cpu'):
 
 #find POSSIBLE intersections of bent hyperplanes, given a list of all neurons in earlier layers 
 # and a list of neurons in later layers. 
-def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, early_layer_biases=None, device=None): 
+def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, early_layer_biases=None, device='cpu'): 
     '''Given a polyhedral region R, in input space, layer_maps is a tensor of the activity functions
     of each neuron on the interior of that region. If this is the first layer, input None. 
     last_layer is the single layer after layer_maps which provides "new" bent hyperplanes.
@@ -289,8 +289,8 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
     Returns: locations of points which represent possible vertices, the pairs of hyperplanes which 
     intersect to make those points'''
     
-    if device is None:
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    #if device is None:
+    #    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     last_layer = last_layer.detach()
     last_biases = last_biases.detach() 
@@ -298,7 +298,7 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
     #If the last layer is the only layer then layer_maps is None. 
     if early_layer_maps is None or early_layer_biases is None: 
         #get at tensorfied list of all neurons in the output of the given layer 
-        n_out=torch.tensor(range(len(last_layer))).to(device)
+        n_out=torch.arange(len(last_layer)) # tensor(range(len(last_layer))).to(device)
         
         #obtain all in_dim-combinations of the first layer's hyperplanes  
         combos = torch.combinations( n_out, r=in_dim)
@@ -376,7 +376,7 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
             combos.extend(last_combos)
         
         
-        return all_points, np.array(combos)
+        return all_points, combos
         
 
         
@@ -410,7 +410,7 @@ def get_full_complex(model, max_depth=None, device=None):
 
     
     #get first layer sign sequences.
-    temp_points, temp_combos = find_intersections(in_dim,parameters[0],parameters[1])
+    temp_points, temp_combos = find_intersections(in_dim,parameters[0],parameters[1], device=device)
     
     #initialize full list of points, sign sequences, and ss_dict  
     all_points, all_ssv = determine_existing_points(temp_points,temp_combos,model, device=device)
