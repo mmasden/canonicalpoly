@@ -1,0 +1,10 @@
+__pycache__/
+.ipynb_checkpoints/ 
+
+polyhedra_talapas/
+
+polyhedra/cx.py.backup
+polyhedra/old.py 
+polyhedra/untitled.txt
+
+Bug_Tracedown.ipynb 
