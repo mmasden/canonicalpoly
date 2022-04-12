@@ -15,23 +15,60 @@ def multiply(v1, v2):
         raise ValueError("The two sign sequences must have same length")
         return
     else: 
+        
+        #can we torchify this? 
+             
         product = list(v1) 
         for i in range(len(product)): 
             if product[i]==0: 
                 product[i] = v2[i]
         
+#         if not torch.is_tensor(v1): 
+#             v1 = torch.tensor(v1) 
+#         if not torch.is_tensor(v2): 
+#             v2=torch.tensor(v2)
+            
+#         product = v1.clone()
+#         locs = torch.where(product==0)[0]
+#         product[locs]=v2[locs]
+        
+       
         return tuple(product)
+    
+def multiply_torch(v1, v2):
+    
+    if not torch.is_tensor(v1): 
+        v1 = torch.tensor(v1) 
+    if not torch.is_tensor(v2): 
+        v2=torch.tensor(v2)
+
+    product = v1.clone()
+    locs = torch.where(product==0)[0]
+    product[locs]=v2[locs]
+    
+    return product
     
 #check if two vertices, in ambient dimension dim, are edge connected 
 def edge_connected(v1, v2,  dim = 2): 
     p1 = multiply(v1,v2)
     p2 = multiply(v2,v1) 
     #print(p1,p2)
-    if p1 == p2 and sum([p == 0 for p in p1 ]) == dim-1: 
+    if p1==p2 and sum([p==0 for p in p1]) == dim-1: 
         return True 
     else: 
         return False 
 
+def edge_connected_torch(v1,v2,dim=2): 
+    p1 = multiply_torch(v1,v2)
+    p2 = multiply_torch(v2,v1) 
+    #print(p1,p2)
+    if torch.equal(p1,p2) and torch.sum(p1==0) == dim-1: 
+        return True 
+    else: 
+        return False 
+    
+    
+    
 # checks if v is a face of F
 def is_face(v, F): 
     p = multiply(v,F)
@@ -56,7 +93,7 @@ def make_linear(affine_matrix):
 
 
         
-def plot_complex(plot_dict, num_comparison, ax=None, colors=None):
+def plot_complex(plot_dict, num_comparison, dim, ax=None, colors=None):
     if ax is None: 
         fix,ax =  plt.subplots(figsize=(5,5)) 
         ax.set_xlim((-10,10))
@@ -71,10 +108,10 @@ def plot_complex(plot_dict, num_comparison, ax=None, colors=None):
     
     for v in plot_dict: 
         for w in plot_dict: 
-            if edge_connected(v[0:num_comparison],w[0:num_comparison]): 
+            if edge_connected(v[0:num_comparison],w[0:num_comparison], dim=dim): 
                 
                 hyper_set = set(np.where(np.array(v)==0)[0]).intersection(set(np.where(np.array(w)==0)[0]))
-                hyper = hyper_set.pop()
+                hyper = max(hyper_set)
                 color = colors[hyper]
                 
                 if color=="black" or color=="blue":
