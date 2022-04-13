@@ -116,11 +116,14 @@ def plot_complex(plot_dict, num_comparison, dim, ax=None, colors=None):
                 
                 if color=="black" or color=="blue":
                     ax.plot(*np.vstack([plot_dict[v],plot_dict[w]]).T, c=color,alpha=.1,zorder=1)
+                elif color=="white": 
+                    pass
                 else:
                     ax.plot(*np.vstack([plot_dict[v],plot_dict[w]]).T, c=color,alpha=.5,zorder=1)
                     
     return ax
     
+
     
     
     
