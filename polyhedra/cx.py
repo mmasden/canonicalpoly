@@ -359,50 +359,53 @@ def find_intersections(in_dim, last_layer, last_biases, image_dim, ssr, early_la
             
             old_vals=len(early_layer_maps)
             
-            #can this be done without a loop? 
-            for i,j in torch.cartesian_prod(torch.tensor(range(len(early_combos))),
-                                            torch.tensor(range(len(last_combos)))):
-                early_neurons = early_combos[i]
-                last_neurons = last_combos[j]
+            # worry about degeneracy only if it has been collapsed 
+            
+            # IF HYPERPLANES NONGENERIC SKIP 
+            # This occurs if image_dim < in_dim (the region has been collapsed) 
+            # and the bent hyperplanes from earlier layers intersect in a region 
+            # sent to a point. This occurs when, if taking the sign sequence of the region
+            # and setting all the BH's coordinates to 0, you only have -1s left
+            # Stupidly, it seems easier to set them all to -1 and check to see if you have 
+            # all -1's . . . . 
+            
+            if image_dim < in_dim:
                 
-                                
-                # IF HYPERPLANES NONGENERIC SKIP 
-                # This occurs if image_dim < in_dim (the region has been collapsed) 
-                # and the bent hyperplanes from earlier layers intersect in a region 
-                # sent to a point. This occurs when, if taking the sign sequence of the region
-                # and setting all the BH's coordinates to 0, you only have -1s left
-                # Stupidly, it seems easier to set them all to -1 and check to see if you have 
-                # all -1's . . . . 
-                                
-                remaining_dims = ssr.clone()
-                remaining_dims[early_neurons] = -1
-                
-                
-                # OLD (borked because determinant is messy and slow) 
-                
-                # if torch.linalg.det(torch.vstack(
-                #                [early_layer_maps[early_neurons],
-                #                 last_layer[last_neurons]])) ==0: 
-                #     pass
-                
-                
-                if image_dim < in_dim and sum(remaining_dims)==-1*len(remaining_dims):
+                if image_dim ==0: 
                     pass
-                    
-                
                 else: 
+                    remaining_dims = ssr.repeat((len(early_combos),1))
+                    remaining_dims[early_combos]=-1 
 
-                    point = torch.linalg.solve(
-                                torch.vstack(
-                                    [early_layer_maps[early_neurons],
-                                     last_layer[last_neurons]]), 
-                                -torch.vstack(
-                                    [torch.reshape(early_layer_biases[early_neurons],[-1,1]),
-                                     torch.reshape(last_biases[last_neurons],[-1,1])]))
+                    total_negs = torch.sum(remaining_dims, axis = 1)
+                    good_initial_BHs = total_negs != -1*len(ssr)
 
-                    all_points.append(point.reshape((1,in_dim)))
+                    good_early_combos = early_combos[good_initial_BHs]
+                    #early_layer_maps[early_combos[good_initial_BHs]]
 
-                    combos.append(torch.hstack([early_neurons,last_neurons+old_vals]))
+                    temporary_maps = torch.vstack([early_layer_maps, last_layer])
+                    temporary_biases = torch.vstack([torch.reshape(early_layer_biases, [-1,1]), torch.reshape(last_biases,[-1,1])])
+
+                    total_combos = torch.hstack([good_early_combos.repeat((len(last_combos),1)), last_combos.repeat_interleave(len(good_early_combos),dim=0)+old_vals])
+                   
+                    points = torch.linalg.solve(temporary_maps[total_combos], -temporary_biases[total_combos])
+                    
+                    all_points.append(points.reshape([-1,in_dim]))
+                    combos.extend(total_combos)
+                
+            else: 
+                #turn early_layer_maps and last_layer into one biggo stack 
+                temporary_maps = torch.vstack([early_layer_maps, last_layer])
+                temporary_biases = torch.vstack([torch.reshape(early_layer_biases, [-1,1]), torch.reshape(last_biases,[-1,1])])
+                
+                total_combos = torch.hstack([early_combos.repeat((len(last_combos),1)), last_combos.repeat_interleave(len(early_combos),dim=0)+old_vals])
+
+                points = torch.linalg.solve(temporary_maps[total_combos], -temporary_biases[total_combos])
+                
+                all_points.append(points.reshape([-1,in_dim]))
+                combos.extend(total_combos)
+                
+                
         
         if len(all_points)>0: 
             all_points=torch.vstack(all_points)
@@ -419,7 +422,9 @@ def find_intersections(in_dim, last_layer, last_biases, image_dim, ssr, early_la
             last_combos = torch.combinations(n_out, r=in_dim)
             
             temp_points = torch.linalg.solve(last_layer[last_combos],-last_biases[last_combos])
-
+            
+            #print(all_points, temp_points)
+            
             all_points = torch.vstack([all_points,temp_points])
             
             last_combos = list((last_combos+old_vals))
