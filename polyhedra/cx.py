@@ -92,6 +92,7 @@ def make_linear(affine_matrix):
     return matrix,bias
 
 
+
         
 def plot_complex(plot_dict, num_comparison, dim, ax=None, colors=None):
     if ax is None: 
@@ -176,7 +177,6 @@ class NeuralNetwork(nn.Module):
     def __init__(self, architecture):
         super(NeuralNetwork, self).__init__()
         self.flatten = nn.Flatten()
-
         self.linear_0 = nn.Linear(architecture[0],architecture[1])
         self.relu_0 = nn.ReLU()
         self.linear_1 = nn.Linear(architecture[1],architecture[2])
@@ -290,23 +290,17 @@ def get_all_maps_on_region(ss, depth, param_list, architecture, device='cpu'):
     for i in range(depth): 
         layer_ss = ss[cumulative_architecture[i]:cumulative_architecture[i+1]]
         region_map_on_layer = get_layer_map_on_region(layer_ss,param_list[2*i],param_list[2*i+1], device=device)
-        #print(region_map_on_layer)
         region_maps.append(region_map_on_layer)
         
         
     early_layer_maps = [region_maps[0]] 
     
-    #need: all earlier maps with zeroed spots 
     
     for rmap in region_maps[1:]:
         early_layer_maps.append(rmap @ early_layer_maps[-1])
     
-    #print(early_layer_maps)
-    
-    #last map not zeroed for each neuron 
-    
+        
     affine_layer_maps = [make_affine(param_list[2*i],param_list[2*i+1], device=device) for i in range(depth+1)]
-   # print(affine_layer_maps)
     
     actual_layer_maps = [affine_layer_maps[0].detach()]
     
@@ -318,8 +312,9 @@ def get_all_maps_on_region(ss, depth, param_list, architecture, device='cpu'):
 
 
 #find POSSIBLE intersections of bent hyperplanes, given a list of all neurons in earlier layers 
-# and a list of neurons in later layers. 
-def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, early_layer_biases=None, device='cpu'): 
+# and a list of neurons in later layers.
+
+def find_intersections(in_dim, last_layer, last_biases, image_dim, ssr, early_layer_maps=None, early_layer_biases=None, device='cpu'): 
     '''Given a polyhedral region R, in input space, layer_maps is a tensor of the activity functions
     of each neuron on the interior of that region. If this is the first layer, input None. 
     last_layer is the single layer after layer_maps which provides "new" bent hyperplanes.
@@ -328,24 +323,23 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
     
     Returns: locations of points which represent possible vertices, the pairs of hyperplanes which 
     intersect to make those points'''
-    
-    #if device is None:
-    #    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    
+        
     last_layer = last_layer.detach()
     last_biases = last_biases.detach() 
     
     #If the last layer is the only layer then layer_maps is None. 
     if early_layer_maps is None or early_layer_biases is None: 
+        
         #get at tensorfied list of all neurons in the output of the given layer 
-        n_out=torch.arange(len(last_layer)) # tensor(range(len(last_layer))).to(device)
+        n_out=torch.arange(len(last_layer)) 
         
         #obtain all in_dim-combinations of the first layer's hyperplanes  
         combos = torch.combinations( n_out, r=in_dim)
             
         #solves for points
-        points = torch.linalg.solve(last_layer[combos].detach(), -last_biases[combos].detach()) 
 
+        points = torch.linalg.solve(last_layer[combos].detach(), -last_biases[combos].detach()) 
+        
         return points, combos
     
     else:
@@ -355,13 +349,15 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
         n_between = torch.tensor(range(len(early_layer_biases)))
         n_out = torch.tensor(range(len(last_biases)))
         
+        # loop through k, the number of new bent hyperplanes involved in intersection 
+        # We note that the number of new bent hyperplanes involved in the intersection 
+        # is bounded above by the dimension of the image of the region in this layer! 
         
-        for k in range(1,min(in_dim,len(last_biases)+1)):  #omit 0 because must include some from new layers; can't go above n_out
+        for k in range(1,min(image_dim+1,in_dim,len(last_biases)+1)):  #omit 0 because must include some from new layers; can't go above n_out
             last_combos = torch.combinations(n_out, r=k) 
             early_combos = torch.combinations(n_between, r = in_dim - k)
             
             old_vals=len(early_layer_maps)
-            #print(k)
             
             #can this be done without a loop? 
             for i,j in torch.cartesian_prod(torch.tensor(range(len(early_combos))),
@@ -369,17 +365,31 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
                 early_neurons = early_combos[i]
                 last_neurons = last_combos[j]
                 
-                #print(torch.vstack([early_layer_maps[early_neurons],last_layer[last_neurons]]))
+                                
+                # IF HYPERPLANES NONGENERIC SKIP 
+                # This occurs if image_dim < in_dim (the region has been collapsed) 
+                # and the bent hyperplanes from earlier layers intersect in a region 
+                # sent to a point. This occurs when, if taking the sign sequence of the region
+                # and setting all the BH's coordinates to 0, you only have -1s left
+                # Stupidly, it seems easier to set them all to -1 and check to see if you have 
+                # all -1's . . . . 
+                                
+                remaining_dims = ssr.clone()
+                remaining_dims[early_neurons] = -1
                 
-                #if torch.det?? some pairs of hyperplanes might be parallel here.
+                
+                # OLD (borked because determinant is messy and slow) 
+                
+                # if torch.linalg.det(torch.vstack(
+                #                [early_layer_maps[early_neurons],
+                #                 last_layer[last_neurons]])) ==0: 
+                #     pass
                 
                 
-                
-                
-                if torch.linalg.det(torch.vstack(
-                                [early_layer_maps[early_neurons],
-                                 last_layer[last_neurons]])) ==0: 
+                if image_dim < in_dim and sum(remaining_dims)==-1*len(remaining_dims):
                     pass
+                    
+                
                 else: 
 
                     point = torch.linalg.solve(
@@ -391,7 +401,8 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
                                      torch.reshape(last_biases[last_neurons],[-1,1])]))
 
                     all_points.append(point.reshape((1,in_dim)))
-                    combos.append(list(early_neurons.numpy())+list(last_neurons.numpy()+old_vals))
+
+                    combos.append(torch.hstack([early_neurons,last_neurons+old_vals]))
         
         if len(all_points)>0: 
             all_points=torch.vstack(all_points)
@@ -400,18 +411,18 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
         #UNLESS the most recent output is singular. 
         #in which case ... all will be singular?? 
         
-        if len(last_biases)<in_dim:
+        
+        if len(last_biases)<in_dim or image_dim < in_dim:
             pass;
-        elif torch.linalg.det(last_layer[0:in_dim])==0: 
-            pass
+        
         else:
-
             last_combos = torch.combinations(n_out, r=in_dim)
-
+            
             temp_points = torch.linalg.solve(last_layer[last_combos],-last_biases[last_combos])
-            #temp_points = list(temp_points.cpu().numpy())
+
             all_points = torch.vstack([all_points,temp_points])
-            last_combos = list((last_combos+old_vals).numpy())
+            
+            last_combos = list((last_combos+old_vals))
             #print(last_combos)
             combos.extend(last_combos)
         
@@ -420,6 +431,36 @@ def find_intersections(in_dim, last_layer, last_biases, early_layer_maps=None, e
         
 
         
+def region_image_dimension(temp_ssr, architecture, depth=None): 
+    
+    # all top-dim regions begin at n_0-dimensional
+    current_dim = architecture[0]
+    
+    # need to get sign sequences corresponding to individual layers
+    cumulative_widths = [0]+[sum(architecture[1:i]) for i in range(2,len(architecture))]
+    
+    #loop through layer widths until depth
+    for i,layerwidth in enumerate(architecture[1:depth+1]): 
+        
+        #get sign sequence corresponding with most recent layer 
+        layer_neurons = temp_ssr[cumulative_widths[i]:cumulative_widths[i+1]]
+        
+        # the number of 1's in the sign sequence is the 
+        # maximum dimension of the image of the region 
+        
+        max_dim = sum([s == 1 for s in layer_neurons])
+                                  
+        # generically the dimension will either stay the same 
+        # or be collapsed to the dimension of the image of the map
+        
+        # eg a 1d subspace of R^2 is sent to all of R under a linear map
+        # R^2->R unless it is in the kernel of the map which is a 
+        # nongeneric condition
+         
+        current_dim = min(current_dim,max_dim)
+    
+    return int(current_dim)
+
         
 def get_full_complex(model, max_depth=None, device=None): 
     '''assumes model is feedforward and has appropriate structure.
@@ -450,17 +491,17 @@ def get_full_complex(model, max_depth=None, device=None):
 
     
     #get first layer sign sequences.
-    temp_points, temp_combos = find_intersections(in_dim,parameters[0],parameters[1], device=device)
+    temp_points, temp_combos = find_intersections(in_dim,parameters[0],parameters[1], None, None, device=device)
     
     #initialize full list of points, sign sequences, and ss_dict  
     all_points, all_ssv = determine_existing_points(temp_points,temp_combos,model, device=device)
     
-    tsv=all_ssv.clone().cpu().detach().numpy()
+    tsv=all_ssv.clone() #.cpu().detach().numpy()
     #tpt = all_points.clone().cpu().detach().numpy()
     
     #all_ss_dict = {tuple(ss): pt for ss, pt in zip(tsv,tpt)}
     
-    all_ss_dict = {tuple(ss): pt for ss, pt in zip(tsv,all_points)}
+    all_ss_dict = {tuple(ss.int()): pt for ss, pt in zip(tsv,all_points)}
     #print(all_points)
     #print(all_points)
 
@@ -479,9 +520,11 @@ def get_full_complex(model, max_depth=None, device=None):
         
         #loop through regions from previous layers 
         for temp_ssr in ssr:
-            #obtain the maps on the region induced by the model 
+            
+            # obtain the maps on the region induced by the model at each depth
+            # note i = layer depth 
             region_maps = get_all_maps_on_region(temp_ssr,i,parameters,architecture, device=device)
-            #print(len(region_maps))
+            
             #obtain the early layer maps as a list  of weights and biases
             early_layer_maps, early_layer_biases=[],[]
             for j in range(i):
@@ -495,10 +538,15 @@ def get_full_complex(model, max_depth=None, device=None):
             
             #obtain the last layer map as a list of weights and biases 
             last_layer, last_biases = make_linear(region_maps[-1])
-
+            
+            #get the dimension of the image of the region in this layer
+            image_dim = region_image_dimension(temp_ssr, architecture, depth=i)
+            
+            #print(temp_ssr, ": ", image_dim)
+           
             
             #get temporary list of points 
-            temp_points,temp_combos = find_intersections(in_dim, last_layer, last_biases, 
+            temp_points,temp_combos = find_intersections(in_dim, last_layer, last_biases, image_dim, temp_ssr,
                                    early_layer_maps=early_layer_maps, 
                                    early_layer_biases=early_layer_biases,
                                    device=device)
@@ -506,7 +554,7 @@ def get_full_complex(model, max_depth=None, device=None):
             #if there's at least one point evaluate the veracity of it
             if len(temp_points)>0: 
                 temp_pts, temp_ssv = determine_existing_points(temp_points,
-                                                                  temp_combos,model, region_ss=temp_ssr, device=device)
+                                                                  temp_combos, model, region_ss=temp_ssr, device=device)
 
                 new_points.extend(temp_pts)
                 new_ssv.extend(temp_ssv)
@@ -514,9 +562,9 @@ def get_full_complex(model, max_depth=None, device=None):
         #done looping through regions, now collect points 
        
         if len(new_points)>0: 
-            #print(new_points)
+
             new_points=torch.vstack(new_points)
-            #print(all_points)
+
             all_points = torch.vstack([all_points,new_points])
             
             new_ssv = torch.vstack(new_ssv)
@@ -527,7 +575,7 @@ def get_full_complex(model, max_depth=None, device=None):
             # tsv = new_ssv.clone().cpu().detach().numpy()
             # tpt = new_points.clone().cpu().detach().numpy()
 
-            new_ssv=new_ssv.cpu().detach().numpy()
+            #new_ssv=new_ssv.cpu().detach().numpy()
             # new_ssv = np.array(new_ssv,dtype='int')
             new_ss_dict = {tuple(ss):pt for ss,pt in zip(new_ssv,new_points)}
             
