@@ -4,7 +4,6 @@ from torch import nn
 from torch.utils.data import DataLoader
 #from torchvision import datasets, transforms 
 
-import sklearn
 import itertools 
 import matplotlib.pyplot as plt
 import numpy as np
