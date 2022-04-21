@@ -450,6 +450,278 @@ def find_intersections(in_dim, last_layer, last_biases, image_dim, ssr, architec
         
         return all_points, combos
         
+        
+
+def find_intersections_lsq(in_dim, last_layer, last_biases, image_dim, ssr, architecture, early_layer_maps=None, early_layer_biases=None, device='cpu'): 
+    '''Given a polyhedral region R, in input space, layer_maps is a tensor of the activity functions
+    of each neuron on the interior of that region. If this is the first layer, input None. 
+    last_layer is the single layer after layer_maps which provides "new" bent hyperplanes.
+    Returns the locations of the vertices, and which pairs of bent hyperplanes intersect 
+    at those points.
+    
+    Uses the least squares algorithm instead for faster computation 
+    
+    Returns: locations of points which represent possible vertices, the pairs of hyperplanes which 
+    intersect to make those points'''
+        
+    last_layer = last_layer.detach()
+    last_biases = last_biases.detach() 
+    
+    #If the last layer is the only layer then layer_maps is None. 
+    if early_layer_maps is None or early_layer_biases is None: 
+        
+        #get at tensorfied list of all neurons in the output of the given layer 
+        n_out=torch.arange(len(last_layer)) 
+        
+        #obtain all in_dim-combinations of the first layer's hyperplanes  
+        combos = torch.combinations( n_out, r=in_dim)
+            
+        #solves for points
+
+        points,_,_,_ = torch.linalg.lstsq(last_layer[combos].detach(), -last_biases[combos].detach()) 
+        
+        return points, combos
+    
+    else:
+        all_points = []
+        combos = []
+
+        n_between = torch.tensor(range(len(early_layer_biases)))
+        n_out = torch.tensor(range(len(last_biases)))
+        
+        # loop through k, the number of new bent hyperplanes involved in intersection 
+        # We note that the number of new bent hyperplanes involved in the intersection 
+        # is bounded above by the dimension of the image of the region in this layer! 
+        
+        for k in range(1,min(image_dim+1,in_dim,len(last_biases)+1)):  #omit 0 because must include some from new layers; can't go above n_out
+            last_combos = torch.combinations(n_out, r=k) 
+            early_combos = torch.combinations(n_between, r = in_dim - k)
+            
+            old_vals=len(early_layer_maps)
+            
+            # worry about degeneracy only if it has been collapsed 
+            
+            
+            
+            if image_dim < in_dim:
+                
+                if image_dim ==0: 
+                    pass
+                else: 
+                    
+                    
+                    # IF HYPERPLANES NONGENERIC SKIP 
+                    # This occurs if image_dim < in_dim (the region has been collapsed) 
+                    # and the bent hyperplanes from earlier layers intersect in a region 
+                    # sent to too few dimensions to generically intersect with the. 
+                    # next layer's hyperplanes.
+                    # The latter occurs when, if taking the sign sequence of the region
+                    # and setting all the BH's coordinates to 0, you have fewer 1's left than 
+                    # the dimension minus the number of new hyperplanes (in_dim - k)
+                    # that is, the rank is too low 
+                    
+                    remaining_dims = ssr.repeat((len(early_combos),1))
+                    #print(early_combos)
+                    
+                    #why can't I do this with slicing? 
+                    for i in range(len(remaining_dims)):
+                        remaining_dims[i, early_combos[i]]=-1 
+                    
+                    
+                    total_ones = tensor_region_image_dimension(remaining_dims, architecture, device=device)
+                    #print(remaining_dims)
+                    
+                    good_initial_BHs = total_ones >= in_dim - k
+                    
+                    #print(good_initial_BHs)
+                    good_early_combos = early_combos[good_initial_BHs]
+
+                    temporary_maps = torch.vstack([early_layer_maps, last_layer])
+                    temporary_biases = torch.vstack([torch.reshape(early_layer_biases, [-1,1]), torch.reshape(last_biases,[-1,1])])
+
+                    
+                    total_combos = torch.hstack([good_early_combos.repeat((len(last_combos),1)), last_combos.repeat_interleave(len(good_early_combos),dim=0)+old_vals])
+                    points,_,_,_ = torch.linalg.lstsq(temporary_maps[total_combos], -temporary_biases[total_combos])
+                    
+                    all_points.append(points.reshape([-1,in_dim]))
+                    combos.extend(total_combos)
+                
+            else: 
+                #turn early_layer_maps and last_layer into one biggo stack 
+                temporary_maps = torch.vstack([early_layer_maps, last_layer])
+                temporary_biases = torch.vstack([torch.reshape(early_layer_biases, [-1,1]), torch.reshape(last_biases,[-1,1])])
+                
+                total_combos = torch.hstack([early_combos.repeat((len(last_combos),1)), last_combos.repeat_interleave(len(early_combos),dim=0)+old_vals])
+
+                points,_,_,_ = torch.linalg.lstsq(temporary_maps[total_combos], -temporary_biases[total_combos])
+                
+                all_points.append(points.reshape([-1,in_dim]))
+                combos.extend(total_combos)
+                
+                
+        
+        if len(all_points)>0: 
+            all_points=torch.vstack(all_points)
+        
+        #add in intersections of only the last layer 
+        #UNLESS the most recent output is singular. 
+        #in which case ... all will be singular?? 
+        
+        
+        if len(last_biases)<in_dim or image_dim < in_dim:
+            pass;
+        
+        else:
+            last_combos = torch.combinations(n_out, r=in_dim)
+            
+            temp_points,_,_,_ = torch.linalg.lstsq(last_layer[last_combos],-last_biases[last_combos])
+            
+            #print(all_points, temp_points)
+            
+            all_points = torch.vstack([all_points,temp_points])
+            
+            last_combos = list((last_combos+old_vals))
+            #print(last_combos)
+            combos.extend(last_combos)
+        
+        
+        return all_points, combos
+
+    
+
+
+def find_intersections_float(in_dim, last_layer, last_biases, image_dim, ssr, architecture, early_layer_maps=None, early_layer_biases=None, device='cpu'): 
+    '''Given a polyhedral region R, in input space, layer_maps is a tensor of the activity functions
+    of each neuron on the interior of that region. If this is the first layer, input None. 
+    last_layer is the single layer after layer_maps which provides "new" bent hyperplanes.
+    Returns the locations of the vertices, and which pairs of bent hyperplanes intersect 
+    at those points.
+    
+    Returns: locations of points which represent possible vertices, the pairs of hyperplanes which 
+    intersect to make those points'''
+        
+    last_layer = last_layer.detach().float()
+    last_biases = last_biases.detach().float()
+    
+    #If the last layer is the only layer then layer_maps is None. 
+    if early_layer_maps is None or early_layer_biases is None: 
+        
+        #get at tensorfied list of all neurons in the output of the given layer 
+        n_out=torch.arange(len(last_layer)) 
+        
+        #obtain all in_dim-combinations of the first layer's hyperplanes  
+        combos = torch.combinations( n_out, r=in_dim)
+            
+        #solves for points
+
+        points = torch.linalg.solve(last_layer[combos].detach(), -last_biases[combos].detach()) 
+        
+        return points, combos
+    
+    else:
+        all_points = []
+        combos = []
+
+        n_between = torch.tensor(range(len(early_layer_biases)))
+        n_out = torch.tensor(range(len(last_biases)))
+        
+        # loop through k, the number of new bent hyperplanes involved in intersection 
+        # We note that the number of new bent hyperplanes involved in the intersection 
+        # is bounded above by the dimension of the image of the region in this layer! 
+        
+        for k in range(1,min(image_dim+1,in_dim,len(last_biases)+1)):  #omit 0 because must include some from new layers; can't go above n_out
+            last_combos = torch.combinations(n_out, r=k) 
+            early_combos = torch.combinations(n_between, r = in_dim - k)
+            
+            old_vals=len(early_layer_maps)
+            
+            # worry about degeneracy only if it has been collapsed 
+            
+            
+            
+            if image_dim < in_dim:
+                
+                if image_dim ==0: 
+                    pass
+                else: 
+                    
+                    
+                    # IF HYPERPLANES NONGENERIC SKIP 
+                    # This occurs if image_dim < in_dim (the region has been collapsed) 
+                    # and the bent hyperplanes from earlier layers intersect in a region 
+                    # sent to too few dimensions to generically intersect with the. 
+                    # next layer's hyperplanes.
+                    # The latter occurs when, if taking the sign sequence of the region
+                    # and setting all the BH's coordinates to 0, you have fewer 1's left than 
+                    # the dimension minus the number of new hyperplanes (in_dim - k)
+                    # that is, the rank is too low 
+                    
+                    remaining_dims = ssr.repeat((len(early_combos),1))
+                    #print(early_combos)
+                    
+                    #why can't I do this with slicing? 
+                    for i in range(len(remaining_dims)):
+                        remaining_dims[i, early_combos[i]]=-1 
+                    
+                    
+                    total_ones = tensor_region_image_dimension(remaining_dims, architecture, device=device)
+                    #print(remaining_dims)
+                    
+                    good_initial_BHs = total_ones >= in_dim - k
+                    
+                    #print(good_initial_BHs)
+                    good_early_combos = early_combos[good_initial_BHs]
+
+                    temporary_maps = torch.vstack([early_layer_maps, last_layer])
+                    temporary_biases = torch.vstack([torch.reshape(early_layer_biases, [-1,1]), torch.reshape(last_biases,[-1,1])])
+
+                    
+                    total_combos = torch.hstack([good_early_combos.repeat((len(last_combos),1)), last_combos.repeat_interleave(len(good_early_combos),dim=0)+old_vals])
+                    points = torch.linalg.solve(temporary_maps[total_combos].float(), -temporary_biases[total_combos].float())
+                    
+                    all_points.append(points.reshape([-1,in_dim]))
+                    combos.extend(total_combos)
+                
+            else: 
+                #turn early_layer_maps and last_layer into one biggo stack 
+                temporary_maps = torch.vstack([early_layer_maps, last_layer])
+                temporary_biases = torch.vstack([torch.reshape(early_layer_biases, [-1,1]), torch.reshape(last_biases,[-1,1])])
+                
+                total_combos = torch.hstack([early_combos.repeat((len(last_combos),1)), last_combos.repeat_interleave(len(early_combos),dim=0)+old_vals])
+
+                points = torch.linalg.solve(temporary_maps[total_combos].float(), -temporary_biases[total_combos].float())
+                
+                all_points.append(points.reshape([-1,in_dim]))
+                combos.extend(total_combos)
+                
+                
+        
+        if len(all_points)>0: 
+            all_points=torch.vstack(all_points)
+        
+        #add in intersections of only the last layer 
+        #UNLESS the most recent output is singular. 
+        #in which case ... all will be singular?? 
+        
+        
+        if len(last_biases)<in_dim or image_dim < in_dim:
+            pass;
+        
+        else:
+            last_combos = torch.combinations(n_out, r=in_dim)
+            
+            temp_points = torch.linalg.solve(last_layer[last_combos],-last_biases[last_combos])
+            
+            #print(all_points, temp_points)
+            
+            all_points = torch.vstack([all_points,temp_points])
+            
+            last_combos = list((last_combos+old_vals))
+            #print(last_combos)
+            combos.extend(last_combos)
+        
+        
+        return all_points, combos
 
         
 def region_image_dimension(temp_ssr, architecture, depth=None): 
@@ -518,7 +790,7 @@ def tensor_region_image_dimension(tensor_ssr, architecture, device):
     return current_dim
 
         
-def get_full_complex(model, max_depth=None, device=None): 
+def get_full_complex(model, max_depth=None, device=None, mode='solve'): 
     '''assumes model is feedforward and has appropriate structure.
     Outputs dictionary with vertices' signs and locations of vertices
     This is a less efficient way than is possible, but it's the first 
@@ -547,8 +819,16 @@ def get_full_complex(model, max_depth=None, device=None):
 
     
     #get first layer sign sequences.
-    temp_points, temp_combos = find_intersections(in_dim,parameters[0],parameters[1], None, None, architecture, device=device)
     
+    if mode == 'solve':
+        temp_points, temp_combos = find_intersections(in_dim,parameters[0],parameters[1], None, None, architecture, device=device)
+    elif mode == 'lsq': 
+        temp_points, temp_combos = find_intersections_lsq(in_dim,parameters[0],parameters[1], None, None, architecture, device=device)
+    elif mode == 'float': 
+        temp_points, temp_combos = find_intersections_float(in_dim,parameters[0],parameters[1], None, None, architecture, device=device)
+    else: 
+        print("Mode invalid.")
+        
     #initialize full list of points, sign sequences, and ss_dict  
     all_points, all_ssv = determine_existing_points(temp_points,temp_combos,model, device=device)
     
@@ -602,10 +882,26 @@ def get_full_complex(model, max_depth=None, device=None):
            
             
             #get temporary list of points 
-            temp_points,temp_combos = find_intersections(in_dim, last_layer, last_biases, image_dim, temp_ssr, architecture,
+            
+            if mode == 'solve':
+                temp_points,temp_combos = find_intersections(in_dim, last_layer, last_biases, image_dim, temp_ssr, architecture,
                                    early_layer_maps=early_layer_maps, 
                                    early_layer_biases=early_layer_biases,
                                    device=device)
+            elif mode == 'lsq': 
+                temp_points,temp_combos = find_intersections_lsq(in_dim, last_layer, last_biases, image_dim, temp_ssr, architecture,
+                                   early_layer_maps=early_layer_maps, 
+                                   early_layer_biases=early_layer_biases,
+                                   device=device)
+                
+            elif mode == 'float': 
+                temp_points,temp_combos = find_intersections_float(in_dim, last_layer, last_biases, image_dim, temp_ssr, architecture,
+                                   early_layer_maps=early_layer_maps, 
+                                   early_layer_biases=early_layer_biases,
+                                   device=device)
+            else: 
+                print("Mode invalid")
+                return
             
             #if there's at least one point evaluate the veracity of it
             if len(temp_points)>0: 
