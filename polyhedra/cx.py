@@ -273,6 +273,8 @@ def determine_existing_points(points, combos, model, region_ss=None, device='cpu
     for i in range(len(ssv)): 
         ssv[i,combos[i]]=0
 
+    #ssv[range(len(ssv)),combos]=0
+
     true_points = []
     true_ssv = []
 
@@ -290,6 +292,7 @@ def determine_existing_points(points, combos, model, region_ss=None, device='cpu
         true_ssv=torch.vstack(true_ssv)
         true_points=torch.vstack(true_points)
             #true_points=np.array(true_points.cpu().detach().numpy())
+    
     
     return true_points, true_ssv
     
@@ -400,6 +403,9 @@ def find_intersections(in_dim, last_layer, last_biases, image_dim, ssr, architec
                     for i in range(len(remaining_dims)):
                         remaining_dims[i, early_combos[i]]=-1 
                     
+                    #Aha, figured it out! But it's slower . . . 
+                    #remaining_dims[torch.arange(len(early_combos)).repeat_interleave(len(early_combos[0])), torch.flatten(early_combos)]=-1 
+
                     
                     total_ones = tensor_region_image_dimension(remaining_dims, architecture, device=device)
                     #print(remaining_dims)
