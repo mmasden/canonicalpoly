@@ -814,7 +814,7 @@ def tensor_region_image_dimension(tensor_ssr, architecture, device):
     return current_dim
 
         
-def get_full_complex(model, max_depth=None, device=None, mode='solve'): 
+def get_full_complex(model, max_depth=None, device=None, mode='solve', verbose=False): 
     '''assumes model is feedforward and has appropriate structure.
     Outputs dictionary with vertices' signs and locations of vertices
     This is a less efficient way than is possible, but it's the first 
@@ -856,7 +856,13 @@ def get_full_complex(model, max_depth=None, device=None, mode='solve'):
     #initialize full list of points, sign sequences, and ss_dict  
     all_points, all_ssv = determine_existing_points(temp_points,temp_combos,model, device=device)
     
-    tsv=all_ssv.clone() #.cpu().detach().numpy()    
+    if verbose: 
+        print("First Layer Complete")
+    
+    tsv=all_ssv.clone() #.cpu().detach().numpy()
+    #tpt = all_points.clone().cpu().detach().numpy()
+    
+    #all_ss_dict = {tuple(ss): pt for ss, pt in zip(tsv,tpt)}
     
     all_ss_dict = {tuple(ss.int()): pt for ss, pt in zip(tsv,all_points)}
     #print(all_points)
@@ -875,8 +881,11 @@ def get_full_complex(model, max_depth=None, device=None, mode='solve'):
         new_points, new_ssv = [],[]
         #print(i)
         
-        #loop through regions from previous layers 
-        for temp_ssr in ssr:
+        #loop through regions from previous layers
+        
+        num_ssr = len(ssr)
+        
+        for counter,temp_ssr in enumerate(ssr):
             
             # obtain the maps on the region induced by the model at each depth
             # note i = layer depth 
@@ -931,9 +940,15 @@ def get_full_complex(model, max_depth=None, device=None, mode='solve'):
 
                 new_points.extend(temp_pts)
                 new_ssv.extend(temp_ssv)
-        
+                
+            if verbose:
+                print("*"*int(counter/num_ssr*20+1)+"."*(20-int(counter/num_ssr*20)-1)+" {percent:.2f}%".format(percent=counter/num_ssr*100))
+                        
         #done looping through regions, now collect points 
        
+        if verbose: 
+            print("\n Layer {} complete.".format(i+1))
+            
         if len(new_points)>0: 
 
             new_points=torch.vstack(new_points)
@@ -953,9 +968,10 @@ def get_full_complex(model, max_depth=None, device=None, mode='solve'):
             new_ss_dict = {tuple(ss):pt for ss,pt in zip(new_ssv,new_points)}
             
             all_ss_dict = all_ss_dict | new_ss_dict
-
+        
         else:
             pass
+        
     
     return all_ss_dict, all_points, all_ssv
         
