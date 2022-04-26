@@ -703,6 +703,9 @@ def find_intersections_float(in_dim, last_layer, last_biases, image_dim, ssr, ar
                     total_combos = torch.hstack([good_early_combos.repeat((len(last_combos),1)), last_combos.repeat_interleave(len(good_early_combos),dim=0)+old_vals])
                     points = torch.linalg.solve(temporary_maps[total_combos].float(), -temporary_biases[total_combos].float())
                     
+                    del temporary_maps
+                    del temporary_biases
+                    
                     all_points.append(points.reshape([-1,in_dim]))
                     combos.extend(total_combos)
                 
@@ -885,10 +888,15 @@ def get_full_complex(model, max_depth=None, device=None, mode='solve', verbose=F
         
         num_ssr = len(ssr)
         
+        if verbose: 
+            print("{} regions to evaluate ... ".format(num_ssr))
+            
         for counter,temp_ssr in enumerate(ssr):
             
             # obtain the maps on the region induced by the model at each depth
             # note i = layer depth 
+            # parameters = list of model parameters
+            
             region_maps = get_all_maps_on_region(temp_ssr,i,parameters,architecture, device=device)
             
             #obtain the early layer maps as a list  of weights and biases
@@ -942,7 +950,7 @@ def get_full_complex(model, max_depth=None, device=None, mode='solve', verbose=F
                 new_ssv.extend(temp_ssv)
                 
             if verbose:
-                print("*"*int(counter/num_ssr*20+1)+"."*(20-int(counter/num_ssr*20)-1)+" {percent:.2f}%".format(percent=counter/num_ssr*100))
+                print("*"*int(counter/num_ssr*20+1)+"."*(20-int(counter/num_ssr*20)-1)+" {percent:.2f}%".format(percent=counter/num_ssr*100), end='\r')
                         
         #done looping through regions, now collect points 
        
