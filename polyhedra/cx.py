@@ -77,6 +77,14 @@ def is_face(v, F):
     else: 
         return False 
     
+def is_face_torch(v, F): 
+    p = multiply_torch(v,F)
+
+    if torch.equal(p,F): 
+        return True 
+    else: 
+        return False   
+    
 # Linear algebra utilities #
 def make_affine(matrix, bias, device='cpu'):
     A = torch.hstack([matrix, bias.reshape(len(matrix),1)])
@@ -284,7 +292,7 @@ def determine_existing_points(points, combos, model, region_ss=None, device='cpu
     
     for  temp_pt, temp_ss in zip(points, ssv): 
         #temp_ss = temp_ss.cpu().detach().numpy() try not detaching
-        if region_ss is None or is_face(temp_ss[0:region_len],region_ss): 
+        if region_ss is None or is_face_torch(temp_ss[0:region_len],region_ss): 
             true_points.append(temp_pt) #.cpu().detach().numpy()) 
             true_ssv.append(temp_ss) 
     
