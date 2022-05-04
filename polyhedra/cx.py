@@ -161,34 +161,6 @@ def numpyize_plot_dict(pd):
     
     return pd2
     
-## NN Setup ###
-
-# class NeuralNetwork(nn.Module):
-#     def __init__(self, architecture):
-#         super(NeuralNetwork, self).__init__()
-#         self.flatten = nn.Flatten()
-        
-#         self.linears = []
-#         self.relus = []
-        
-#         for i in range(len(architecture)-2):
-#             self.linears.append(nn.Linear(architecture[i],architecture[i+1]))
-#             self.relus.append(nn.ReLU())
-        
-#         self.linears.append(nn.Linear(architecture[-2],architecture[-1]))
-#         print(self.linears)
-
-#     def forward(self, x):
-#         x = self.flatten(x)
-        
-#         self.activities = []
-                       
-#         self.activities.append(self.linears[0](x)) 
-        
-#         for i in range(len(architecture)):               
-#             self.activities.append(self.linears[i+1](self.relus[i](self.activities[i])))
-
-#         return self.activities
 
 
 class NeuralNetwork(nn.Module):
@@ -201,10 +173,31 @@ class NeuralNetwork(nn.Module):
         self.linear_0 = nn.Linear(architecture[0],architecture[1])
         self.relu_0 = nn.ReLU()
         self.linear_1 = nn.Linear(architecture[1],architecture[2])
+
+
+    def forward(self, x):
+        x = self.flatten(x)
+        
+        self.activity_0 = self.linear_0(x) 
+        self.activity_1 = self.linear_1(self.relu_0(self.activity_0))
+
+        return self.activity_0, self.activity_1
+    
+
+class DeepNeuralNetwork(nn.Module):
+    def __init__(self, architecture):
+        super(NeuralNetwork, self).__init__()
+        
+        self.architecture=architecture
+        
+        self.flatten = nn.Flatten()
+        self.linear_0 = nn.Linear(architecture[0],architecture[1])
+        self.relu_0 = nn.ReLU()
+        self.linear_1 = nn.Linear(architecture[1],architecture[2])
         self.relu_1 = nn.ReLU()
         self.linear_2 = nn.Linear(architecture[2],architecture[3])
-        self.relu_2 = nn.ReLU()
-        self.linear_3 = nn.Linear(architecture[3],architecture[4])
+        # self.relu_2 = nn.ReLU()
+        # self.linear_3 = nn.Linear(architecture[3],architecture[4])
 
 
     def forward(self, x):
@@ -213,9 +206,10 @@ class NeuralNetwork(nn.Module):
         self.activity_0 = self.linear_0(x) 
         self.activity_1 = self.linear_1(self.relu_0(self.activity_0))
         self.activity_2 = self.linear_2(self.relu_1(self.activity_1))
-        self.activity_3 = self.linear_3(self.relu_2(self.activity_2))
+        #self.activity_3 = self.linear_3(self.relu_2(self.activity_2))
 
-        return self.activity_0, self.activity_1, self.activity_2, self.activity_3
+        return self.activity_0, self.activity_1, self.activity_2 #, self.activity_3
+
 
 
 def get_signs(dim):
@@ -333,12 +327,129 @@ def get_all_maps_on_region(ss, depth, param_list, architecture, device='cpu'):
         
     return actual_layer_maps
 
+# def get_face_combos(ssr, existing_vertices): 
+#     '''Obtains the faces of a polyhedral region given a list of the sign sequences of its vertices '''
+#     combos=[]
+#     true_vertex_ssvs = [] 
+    
+#     in_dim = sum(existing_vertices[0]==0)
+    
+#     #get list of vertices which are a face of region with given ssr 
+    
+#     for vertex in existing_vertices: 
+        
+#         #truncate vertex to appropriate length 
+#         #print(ssr,vertex)
+        
+#         if is_face_torch(vertex[0:len(ssr)],ssr): 
+#             true_vertex_ssvs.append(vertex[0:len(ssr)])
+            
+#     all_faces = list(true_vertex_ssvs)+[ssr] 
+    
+#     # all faces of C are the vertices of C with a number of their zeros
+#     # replaced by the corresponding entry of C 
+    
+#     # this can and should be done more efficiently
+    
+#     for i in range(in_dim):
+        
+#         to_replace = torch.combinations(torch.arange(in_dim),r=i+1)
+        
+#         for vertex in true_vertex_ssvs: 
+#             for replace_loc in to_replace: 
+#                 temp_vertex=vertex.clone()
+
+#                 locs = torch.where(temp_vertex==0)[0]
+
+#                 #print(locs[replace_loc])
+
+#                 temp_vertex[locs[replace_loc]]=ssr[locs[replace_loc]]
+#                 #print(temp_vertex)
+#                 all_faces.append(temp_vertex)
+    
+    
+#     all_faces = torch.unique(torch.vstack(all_faces),dim=0)
+#     hyperplane_combos = []
+#     #print(all_faces)
+
+#     #group combos by dimension
+    
+#     for i in range(in_dim+1):
+    
+#         hyperplane_combos.append([])
+        
+#         for face in all_faces[torch.sum(all_faces==0,axis=1)==i]: 
+#             hyperplane_combos[-1].append(torch.where(face==0)[0])
+        
+#         #print(i, ssr,torch.vstack(true_vertex_ssvs))
+#         #print(hyperplane_combos[-1])
+#         hyperplane_combos[-1]=torch.vstack(hyperplane_combos[-1])
+        
+#     return hyperplane_combos
+
+
+def get_face_combos(ssr, existing_vertices): 
+    '''Obtains minimal sets of hyperplanes forming the faces of a polyhedral region, 
+       given a list of the sign sequences of its vertices '''
+
+    combos=[]
+    true_vertex_ssvs = [] 
+    
+    in_dim = sum(existing_vertices[0]==0)
+    
+    #get list of vertices which are a face of region with given ssr 
+    
+    for vertex in existing_vertices: 
+        
+        #truncate vertex to appropriate length 
+        #print(ssr,vertex)
+        
+        if is_face_torch(vertex[0:len(ssr)],ssr): 
+            true_vertex_ssvs.append(vertex[0:len(ssr)])
+         
+    true_vertex_ssvs = torch.vstack(true_vertex_ssvs)
+    
+    # all faces of C are the vertices of C with a number of their zeros
+    # replaced by the corresponding entry of C 
+    
+    # the bent hyperplanes which intersect to form the faces of C are given 
+    # by all subsets of the hyperplanes which intersect to form the vertices of C 
+    # e.g. if BH 1n2n3 is an vertex of C, then 1n2 intersect to form a face, 2n3, 1n3 and
+    # 1, 2, and 3 individually 
+    
+    # e.g. simplicial closure 
+    
+    # I'm under the impression this should be shellable, so there shoudl be a way to do this
+    # which is much faster than below. 
+    
+    top_simplices = [torch.where(vertex==0)[0] for vertex in true_vertex_ssvs]
+    top_simplices = torch.vstack(top_simplices)
+    
+    hyperplane_combos = [[]] 
+    #print(hyperplane_combos)
+    #loop through size of hyperplane combo 
+    
+    for i in range(1, in_dim+1): 
+        #get all i-subsets of top simplices 
+        hyperplane_combos.append([])
+        
+        combinations = torch.combinations(torch.arange(in_dim),r=i) 
+        
+        
+        temp_h_combos = torch.vstack([top_simplices[:,combination] for combination in combinations])
+        
+        temp_h_combos = torch.unique(temp_h_combos,dim=0) 
+        
+        hyperplane_combos[i]=temp_h_combos                                    
+        
+    return hyperplane_combos
+
 
 
 #find POSSIBLE intersections of bent hyperplanes, given a list of all neurons in earlier layers 
 # and a list of neurons in later layers.
 
-def find_intersections(in_dim, last_layer, last_biases, image_dim, ssr, architecture, early_layer_maps=None, early_layer_biases=None, device='cpu'): 
+def find_intersections(in_dim, last_layer, last_biases, image_dim, ssr, architecture,hyperplane_combos=None, early_layer_maps=None, early_layer_biases=None, device='cpu'): 
     '''Given a polyhedral region R, in input space, layer_maps is a tensor of the activity functions
     of each neuron on the interior of that region. If this is the first layer, input None. 
     last_layer is the single layer after layer_maps which provides "new" bent hyperplanes.
@@ -379,7 +490,10 @@ def find_intersections(in_dim, last_layer, last_biases, image_dim, ssr, architec
         
         for k in range(1,min(image_dim+1,in_dim,len(last_biases)+1)):  #omit 0 because must include some from new layers; can't go above n_out
             last_combos = torch.combinations(n_out, r=k) 
-            early_combos = torch.combinations(n_between, r = in_dim - k)
+            #early_combos = torch.combinations(n_between, r = in_dim - k)
+                      
+            early_combos = hyperplane_combos[in_dim-k]
+            #use hyperplane combos which have in_dim-k zeros 
             
             old_vals=len(early_layer_maps)
             
@@ -918,25 +1032,34 @@ def get_full_complex(model, max_depth=None, device=None, mode='solve', verbose=F
             
             #print(temp_ssr, ": ", image_dim)
            
+            #get list of faces of region! 
+            
+            hyperplane_combos = get_face_combos(temp_ssr, all_ssv)
+            
+            
             
             #get temporary list of points 
             
             if mode == 'solve':
-                temp_points,temp_combos = find_intersections(in_dim, last_layer, last_biases, image_dim, temp_ssr, architecture,
+                temp_points,temp_combos = find_intersections(in_dim, 
+                                   last_layer, 
+                                   last_biases, 
+                                   image_dim, temp_ssr, architecture,
+                                   hyperplane_combos = hyperplane_combos,
                                    early_layer_maps=early_layer_maps, 
                                    early_layer_biases=early_layer_biases,
                                    device=device)
-            elif mode == 'lsq': 
-                temp_points,temp_combos = find_intersections_lsq(in_dim, last_layer, last_biases, image_dim, temp_ssr, architecture,
-                                   early_layer_maps=early_layer_maps, 
-                                   early_layer_biases=early_layer_biases,
-                                   device=device)
+#             elif mode == 'lsq': 
+#                 temp_points,temp_combos = find_intersections_lsq(in_dim, last_layer, last_biases, image_dim, temp_ssr, architecture,
+#                                    early_layer_maps=early_layer_maps, 
+#                                    early_layer_biases=early_layer_biases,
+#                                    device=device)
                 
-            elif mode == 'float': 
-                temp_points,temp_combos = find_intersections_float(in_dim, last_layer, last_biases, image_dim, temp_ssr, architecture,
-                                   early_layer_maps=early_layer_maps, 
-                                   early_layer_biases=early_layer_biases,
-                                   device=device)
+#             elif mode == 'float': 
+#                 temp_points,temp_combos = find_intersections_float(in_dim, last_layer, last_biases, image_dim, temp_ssr, architecture,
+#                                    early_layer_maps=early_layer_maps, 
+#                                    early_layer_biases=early_layer_biases,
+#                                    device=device)
             else: 
                 print("Mode invalid")
                 return
