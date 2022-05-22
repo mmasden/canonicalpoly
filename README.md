@@ -1,8 +1,8 @@
 >📋  A template README.md for code accompanying a Machine Learning paper
 
-# My Paper Title
+# Algorithmic Determination of the Combinatorial Structure of the Linear Regions of ReLU Neural Networks
 
-This repository is the official implementation of [My Paper Title](https://arxiv.org/abs/2030.12345). 
+This repository is the official implementation of _Algorithmic Determination of the Combinatorial Structure of the Linear Regions of ReLU Neural Networks_.
 
 >📋  Optional: include a graphic explaining your approach/main result, bibtex entry, link to demos, blog posts and tutorials
 
