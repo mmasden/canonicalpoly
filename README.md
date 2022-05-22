@@ -1,81 +1,54 @@
->📋  A template README.md for code accompanying a Machine Learning paper
-
 # Algorithmic Determination of the Combinatorial Structure of the Linear Regions of ReLU Neural Networks
 
 This repository is the official implementation of _Algorithmic Determination of the Combinatorial Structure of the Linear Regions of ReLU Neural Networks_.
 
->📋  Optional: include a graphic explaining your approach/main result, bibtex entry, link to demos, blog posts and tutorials
+The included code computes the polyhedral complex of a ReLU Neural Network in Pytorch by computing only the vertices and their sign sequences. This allows for computation of topological invariants of subcomplexes of the polyhedral complex, for example, its decision boundary. 
+
+![torus](https://user-images.githubusercontent.com/38443979/169712774-31db512e-1e8b-4e00-b8fc-02d6bf4d3d0f.png)
 
 ## Requirements
 
-To install requirements:
+To install requirements for obtaining the polyhedral decomposition of input space,run the following in a Python 3.9+ virtual environment.
 
 ```setup
-pip install -r requirements.txt
+pip install -r requirements_polyhedra.txt
 ```
 
->📋  Describe how to set up the environment, e.g. pip/conda/docker commands, download datasets, etc...
+For obtaining the topological decomposition of input space, we use Sage 9.0, with installation instructions provided [here](https://doc.sagemath.org/html/en/installation/index.html). No additional requirements are necessary.
 
-## Training
+## Obtaining Polyhedral Complexes
 
-To train the model(s) in the paper, run this command:
+To obtain the polyhedral complexes for random initializations of neural networks, run:
 
-```train
+```polyhedral complex
 python train.py --input-data <path_to_data> --alpha 10 --beta 20
 ```
+For example, the command ``` ```  
 
->📋  Describe how to train the models, with example commands on how to train the models in your paper, including the full training procedure and appropriate hyperparameters.
+The saved file ``` asdf.npz``` contains two 
 
-## Evaluation
+To obtain the Betti numbers of the resulting one-point compactified decision boundary, 
 
-To evaluate my model on ImageNet, run:
+The saved file ``` . ``` contains . 
+
+
+
+## Obtaining Topological Data
+
+To obtain the topological properties of the 
 
 ```eval
 python eval.py --model-file mymodel.pth --benchmark imagenet
 ```
 
->📋  Describe how to evaluate the trained models on benchmarks reported in the paper, give commands that produce the results (section below).
+## Pre-Generated Polyhedral Complexes
 
-## Pre-trained Models
-
-You can download pretrained models here:
-
-- [My awesome model](https://drive.google.com/mymodel.pth) trained on ImageNet using parameters x,y,z. 
-
->📋  Give a link to where/how the pretrained models can be downloaded and how they were trained (if applicable).  Alternatively you can have an additional column in your results table with a link to the models.
+The data obtained in the experiments for this :
 
 ## Results
 
-Our model achieves the following performance on :
-
-### [Image Classification on ImageNet](https://paperswithcode.com/sota/image-classification-on-imagenet)
 
 | Model name         | Top 1 Accuracy  | Top 5 Accuracy |
 | ------------------ |---------------- | -------------- |
 | My awesome model   |     85%         |      95%       |
 
->📋  Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main result is a figure, include that figure and link to the command or notebook to reproduce it. 
-
-
-## Contributing
-
->📋  Pick a licence and describe how to contribute to your code repository. 
-
----- 
-
-# polytorch
-
-This code computes the polyhedral complex of a ReLU Neural Network in Pytorch by computing only the vertices and their sign sequences. This allows for computation of topological invariants of subcomplexes of the polyhedral complex, for example, its decision boundary. 
-
-Dependencies / currently developed with: 
-
-* Python 3.9+ 
-* matplotlib
-* scikit-learn
-* numpy
-
-"cx" module:
-* PyTorch 1.11
-
-"topology" module: 
-* Sage 9.0
