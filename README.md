@@ -48,7 +48,7 @@ sage get_db_homology.py "path/to/previous/output" "save_file_name"
 
 The saved file contains: 
 
-* "bettis" of shape (n_architectures, n_trials, 5) recording \(\beta_i\_ for each \(0 \leq i \leq 4\). 
+* "bettis" of shape (n_architectures, n_trials, 5) recording the *i*th Betti number for i=0 to 4. 
 * "archs" recording the architectures which are indexed by the n_architectures 
 
 ## Plotting Examples and Theorem 15
