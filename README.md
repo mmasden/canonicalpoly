@@ -21,25 +21,35 @@ For obtaining the topological decomposition of input space, we use Sage 9.0, wit
 To obtain the polyhedral complexes for random initializations of neural networks, run:
 
 ```polyhedral complex
-python train.py --input-data <path_to_data> --alpha 10 --beta 20
+python3 Compute_Complexes_Initialization.py input_dimension hidden_layers minwidth maxwidth width_step n_trials 
 ```
-For example, the command ``` ```  
+For example, the command
 
-The saved file ``` asdf.npz``` contains two 
+```python3 Compute_Complexes_Initialization.py 3 2 4 10 2 20 ```  
 
-To obtain the Betti numbers of the resulting one-point compactified decision boundary, 
+will randomly initialize 20 neural networks for each architecture ```(3,n,n,1)``` (two hidden layers)
+for even values of n from 4 to 10, and obtain the polyhedral complex for each of these networks.
 
-The saved file ``` . ``` contains . 
+The saved file is a Numpy .npz file for compatibility with Sage. It contains: 
 
+* "complexes" (the sign sequences of all the vertices present in the initialized networks) 
+* "points" (the location of all vertices present in the initialized networks) 
+* "times" (the amount of time taken to compute all trials for each architecture) 
+* "archs" (a record of the network architectures which were randomly initialized)
 
 
 ## Obtaining Topological Data
 
-To obtain the topological properties of the 
+To obtain the Betti numbers of the resulting one-point compactified decision boundary, run: 
 
-```eval
-python eval.py --model-file mymodel.pth --benchmark imagenet
-```
+```Betti numbers 
+sage get_db_homology.py "path/to/previous/output" "save_file_name" 
+``` 
+
+The saved file contains: 
+
+* "bettis" of shape (n_architectures, n_trials, 5) recording $\beta_i$ for each $0 \leq i \leq 4$. 
+* "archs" recording the architectures which are indexed by the n_architectures 
 
 ## Pre-Generated Polyhedral Complexes
 
