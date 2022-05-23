@@ -11,7 +11,7 @@ The included code computes the polyhedral complex of a ReLU Neural Network in Py
 To install requirements for obtaining the polyhedral decomposition of input space,run the following in a Python 3.9+ virtual environment.
 
 ```setup
-pip install -r requirements_polyhedra.txt
+pip install -r requirements.txt
 ```
 
 For obtaining the topological decomposition of input space, we use Sage 9.0, with installation instructions provided [here](https://doc.sagemath.org/html/en/installation/index.html). No additional requirements are necessary.
