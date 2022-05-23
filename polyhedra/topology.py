@@ -91,10 +91,7 @@ def complex_coboundary(vertex_list, architecture, bh = -1):
             
             facesip1 = facesip1.union(coelts)
         
-        faces[i+1] = facesip1
-            
-
-            
+        faces[i+1] = facesip1      
             
     return faces, coboundary_map
         
@@ -142,7 +139,7 @@ def get_coboundary_matrices(faces, coboundary_map, architecture, field=Zmod(2)):
         boundary=sum(d[1][:,j])[0]
         if boundary==1: 
             d[1][-1,j]=1
-    
+            
     return d
 
 

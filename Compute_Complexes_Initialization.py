@@ -1,20 +1,16 @@
 #Run this file as 
-#python3 Initial_DB_Compute.py input_dimension, hidden_layers, minwidth, maxwidth, step, n_trials 
+#python3 Compute_Complexes_Initialization.py input_dimension, hidden_layers, minwidth, maxwidth, step, n_trials 
 #For example 
 #python3 Initial_DB_Compute.py 2 2 5 25 5 1
 
-
-
+import sys
+from timeit import default_timer as timer
 import torch 
 from torch import nn 
-
 import numpy as np 
-
-from timeit import default_timer as timer
 
 from polyhedra import cx 
 
-import sys
 
 ### Define classes and functions 
 
@@ -71,6 +67,7 @@ if __name__ == '__main__':
 
     ### File name and other parameters that can be set manually
     fname = "Initial_DBs_in{}_h{}_w{}_W{}_s{}_n{}".format(*sys.argv[1:])
+    print("Saving at {}".format(fname))
     device = 'cpu'
 
     ### Actual script starts here 
@@ -79,11 +76,12 @@ if __name__ == '__main__':
     archs = []
     times = []
 
-    ### 
+    ### loop through intermediate widths
     for n in range(int(minwidth),int(maxwidth), int(step)): 
 
         time0=timer() 
         
+        #obtain architecture of interest
         architecture = [int(input_dimension)]+[int(n)]*int(hidden_layers)+[1]
         archs.append(architecture)
 
@@ -92,7 +90,10 @@ if __name__ == '__main__':
     
         for test in range(int(n_trials)): 
             
+            #initialize model with given architecture 
             model = NeuralNetwork(architecture).to(device)
+
+
             plotdict, points, ssv = cx.get_full_complex(model, max_depth=len(architecture)-1, device=device) 
             vertex_array = ssv.cpu().detach().numpy()
             points = points.cpu().detach().numpy() 
