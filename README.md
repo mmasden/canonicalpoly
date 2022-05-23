@@ -51,14 +51,10 @@ The saved file contains:
 * "bettis" of shape (n_architectures, n_trials, 5) recording $\beta_i$ for each $0 \leq i \leq 4$. 
 * "archs" recording the architectures which are indexed by the n_architectures 
 
-## Pre-Generated Polyhedral Complexes
+## Plotting Examples and Theorem 15
 
-The data obtained in the experiments for this :
+Samples of the plotting capability of this code are available in ```Example_Models.ipynb```, together
+with the models given as an example in Theorem 15.
 
-## Results
-
-
-| Model name         | Top 1 Accuracy  | Top 5 Accuracy |
-| ------------------ |---------------- | -------------- |
-| My awesome model   |     85%         |      95%       |
+![image](https://user-images.githubusercontent.com/38443979/169736504-3299f4cc-07f0-4e81-846e-ac44817d984f.png)
 
