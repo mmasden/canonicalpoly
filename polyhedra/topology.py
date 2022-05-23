@@ -47,14 +47,10 @@ def bh_coboundary(cell, bh=-1):
             newcell = list(cell) 
             newcell[i]=-1 
             
-            #hack to make sure that index of interest stays 0
-            #newcell[bh]=0
             
             cobdy.add(tuple(newcell))
             newcell[i]=1 
 
-            #hack to make sure that index of interest stays 0
-            #newcell[bh]=0
 
             cobdy.add(tuple(newcell)) 
     
@@ -122,10 +118,12 @@ def get_coboundary_matrices(faces, coboundary_map, architecture, field=Zmod(2)):
     #for each dimension 
     
     for i in range(architecture[0]-1):
+
         #loop through cells in that dimension  using j
+
         for j in range(len(flists[i])): 
             #go through coboundary elements of that cell and add them to d 
-            #print(flists[i][j])
+
             for entry in coboundary_map[tuple(flists[i][j])]: 
                 
                 #obtain key of that cell as k
