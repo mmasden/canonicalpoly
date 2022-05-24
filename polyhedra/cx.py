@@ -457,8 +457,6 @@ def find_intersections(in_dim, last_layer, last_biases, image_dim, ssr, architec
                     for i in range(len(remaining_dims)):
                         remaining_dims[i, early_combos[i]]=-1 
                     
-                    #remaining_dims[torch.arange(len(early_combos)).repeat_interleave(len(early_combos[0])), torch.flatten(early_combos)]=-1 
-
                     
                     total_ones = tensor_region_image_dimension(remaining_dims, architecture, device=device)
                     

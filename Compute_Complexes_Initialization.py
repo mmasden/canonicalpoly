@@ -108,7 +108,7 @@ if __name__ == '__main__':
         print("\n architecture {} took time {} seconds".format(architecture,times[-1]) )
         
         #save at the end of each set of loops 
-        np.savez("data/initialization/"+fname, 
+        np.savez(fname, 
                  complexes = np.array(all_complexes,dtype='object'), 
                  points = np.array(all_points, dtype='object'),
                  times = np.array(times),
