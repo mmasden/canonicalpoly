@@ -141,3 +141,22 @@ def get_coboundary_matrices(faces, coboundary_map, architecture, field=Zmod(2)):
     return d
 
 
+def get_db_homology(vertex_ss_set, architecture, get_representatives=False): 
+    ''' Inputs an array of vertices and a network architecture. 
+        Architecture is really only used for input dimension, so 
+        this will be adjusted later. 
+        
+        Outputs the betti numbers of the decision boundary.'''
+    
+    #obtain the cell decomposition 
+    faces, coboundary_map = complex_coboundary(vertex_ss_set, architecture)
+    
+    #get coboundary matrices
+    d = get_coboundary_matrices(faces, coboundary_map, architecture)
+
+    C_k = ChainComplex({i:d[i] for i in range(len(d))},degree=-1)
+    
+    if get_representatives: 
+        return C_k.homology(generators=True)
+    else:
+        return C_k.betti()
