@@ -1,6 +1,6 @@
 # This module requires Sage to function fully. 
 
-from sage.all import Zmod, matrix
+from sage.all import Zmod, matrix, ChainComplex
 import numpy as np
 
 
