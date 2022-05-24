@@ -33,10 +33,10 @@ python3 Compute_Complexes_Initialization.py input_dimension hidden_layers minwid
 ```
 For example, the command
 
-```python3 Compute_Complexes_Initialization.py 2 2 4 8 2 20 ```  
+```python3 Compute_Complexes_Initialization.py 2 2 6 12 3 20 ```  
 
 will randomly initialize 20 neural networks for each architecture ```(2,n,n,1)``` (two hidden layers)
-for even values of n from 4 to 8, and obtain the polyhedral complex for each of these networks.
+for values of n from 6 to 12 which are multiples of 3, and obtain the polyhedral complex for each of these networks.
 
 The saved file is a Numpy .npz file for compatibility with Sage. It contains: 
 
@@ -48,7 +48,8 @@ The saved file is a Numpy .npz file for compatibility with Sage. It contains:
 
 ## Obtaining Topological Data
 
-To obtain the Betti numbers of the resulting one-point compactified decision boundary, run: 
+To obtain the Betti numbers of the resulting one-point compactified decision boundary, 
+run the following **(outside of the virtual environment**): 
 
 ```Betti numbers 
 sage get_db_homology.py "path/to/previous/output" "save_file_name" 
