@@ -13,6 +13,14 @@ To install requirements for obtaining the polyhedral decomposition of input spac
 ```setup
 pip install -r requirements.txt
 ```
+If this conflicts with system properties, you may instead install the following in Python 3.9: 
+
+* pytorch 1.11 by following the instructions [here](https://pytorch.org/get-started/locally/)
+* matplotlib, 
+* jupyter-notebook, and 
+* numpy
+
+The sample code is currently configured to run without requiring GPU support. 
 
 For obtaining the topological decomposition of input space, we use Sage 9.0, with installation instructions provided [here](https://doc.sagemath.org/html/en/installation/index.html). No additional requirements are necessary.
 
@@ -25,10 +33,10 @@ python3 Compute_Complexes_Initialization.py input_dimension hidden_layers minwid
 ```
 For example, the command
 
-```python3 Compute_Complexes_Initialization.py 3 2 4 10 2 20 ```  
+```python3 Compute_Complexes_Initialization.py 3 2 4 8 2 20 ```  
 
 will randomly initialize 20 neural networks for each architecture ```(3,n,n,1)``` (two hidden layers)
-for even values of n from 4 to 10, and obtain the polyhedral complex for each of these networks.
+for even values of n from 4 to 8, and obtain the polyhedral complex for each of these networks.
 
 The saved file is a Numpy .npz file for compatibility with Sage. It contains: 
 
