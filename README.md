@@ -33,9 +33,9 @@ python3 Compute_Complexes_Initialization.py input_dimension hidden_layers minwid
 ```
 For example, the command
 
-```python3 Compute_Complexes_Initialization.py 3 2 4 8 2 20 ```  
+```python3 Compute_Complexes_Initialization.py 2 2 4 8 2 20 ```  
 
-will randomly initialize 20 neural networks for each architecture ```(3,n,n,1)``` (two hidden layers)
+will randomly initialize 20 neural networks for each architecture ```(2,n,n,1)``` (two hidden layers)
 for even values of n from 4 to 8, and obtain the polyhedral complex for each of these networks.
 
 The saved file is a Numpy .npz file for compatibility with Sage. It contains: 
