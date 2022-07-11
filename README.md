@@ -2,7 +2,7 @@
 
 This repository is the official implementation of _Algorithmic Determination of the Combinatorial Structure of the Linear Regions of ReLU Neural Networks_.
 
-The included code computes the polyhedral complex of a ReLU Neural Network in Pytorch by computing only the vertices and their sign sequences. This allows for computation of topological invariants of subcomplexes of the canonical polyhedral complex, for example, its decision boundary. 
+The included code computes the polyhedral complex of a ReLU Neural Network in Pytorch by computing only the vertices and their sign sequences. This allows for computation of topological invariants of subcomplexes of the canonical polyhedral complex^1, for example, its decision boundary. 
 
 ![torus](https://user-images.githubusercontent.com/38443979/169712774-31db512e-1e8b-4e00-b8fc-02d6bf4d3d0f.png)
 
@@ -67,3 +67,4 @@ with the models given as an example in Theorem 15.
 
 ![image](https://user-images.githubusercontent.com/38443979/169736504-3299f4cc-07f0-4e81-846e-ac44817d984f.png)
 
+^1 Grigsby, J. and Lindsey, K (2022). [On transversality of bent hyperplane arrangements and the topological expressiveness of ReLU neural networks](https://arxiv.org/abs/2008.09052). In SIAM Journal on Applied Algebra and Geometry (Vol. 6, Issue 2, pp. 216–242). Society for Industrial & Applied Mathematics (SIAM). https://doi.org/10.1137/20m1368902
