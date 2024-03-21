@@ -62,10 +62,10 @@ The saved file contains:
 * "bettis" of shape (n_architectures, n_trials, 5) recording the *i*th Betti number for i=0 to 4. 
 * "archs" recording the architectures which are indexed by the n_architectures 
 
-## Plotting Examples and Theorem 15
+## Plotting Examples
 
 Samples of the plotting capability of this code are available in ```Example_Models.ipynb```, together
-with the models given as an example in Theorem 15.
+with the models given as an example in the appendix.
 
 ![image](https://user-images.githubusercontent.com/38443979/169736504-3299f4cc-07f0-4e81-846e-ac44817d984f.png)
 
